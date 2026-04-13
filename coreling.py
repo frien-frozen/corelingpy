@@ -358,6 +358,15 @@ def main():
     session(mode)
 
 if __name__ == "__main__":
+
+    if len(sys.argv) > 1 and sys.argv[1] == "--update":
+        print(f"\n  {CY}⚡ Pulling latest Coreling update...{R}\n")
+        if os.name == 'nt':
+            os.system('powershell -Command "Invoke-Expression (New-Object System.Net.WebClient).DownloadString(\'https://raw.githubusercontent.com/frien-frozen/corelingpy/main/install.ps1\')"')
+        else:
+            os.system('curl -fsSL https://raw.githubusercontent.com/frien-frozen/corelingpy/main/install.sh | bash')
+        sys.exit(0)
+
     try:
         alt_screen_enter()
         main()
@@ -365,5 +374,10 @@ if __name__ == "__main__":
         pass
     finally:
         set_terminal_echo(True)
-        alt_screen_exit(); show_cur()
-        print(f"\n{DG}.coreling{R} session closed.\n")
+        alt_screen_exit()
+        show_cur()
+        print(f"\n{DG}.coreling{R} session closed.")
+        
+        if UPDATE_AVAILABLE:
+            print(f"\n  {CY}⚡ Update available:{R} {GR}v{VERSION} → {W}v{UPDATE_AVAILABLE}{R}")
+            print(f"  {GR}Run {W}coreling --update{GR} in your terminal to upgrade.{R}\n")

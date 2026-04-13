@@ -1,11 +1,23 @@
-echo "⚡ Installing Coreling AI Orchestrator..."
+#!/bin/bash
+set -e
 
-curl -sL "https://raw.githubusercontent.com/frien-frozen/corelingpy/corelingv1.py" -o /tmp/coreling
+setup_dirs() {
+  mkdir -p "$HOME/.coreling/artifacts"
+}
 
-chmod +x /tmp/coreling
+download_core() {
+  curl -fsSL "https://raw.githubusercontent.com/frien-frozen/corelingpy/main/coreling.py" -o /tmp/coreling
+  chmod +x /tmp/coreling
+}
 
-echo "Requesting permission to move to /usr/local/bin..."
-sudo mv /tmp/coreling /usr/local/bin/coreling
+install_bin() {
+  if [ -w "/usr/local/bin" ]; then
+    mv /tmp/coreling /usr/local/bin/coreling
+  else
+    sudo mv /tmp/coreling /usr/local/bin/coreling
+  fi
+}
 
-echo "Coreling installed successfully!"
-echo "Type 'coreling' in your terminal to start."
+setup_dirs
+download_core
+install_bin
