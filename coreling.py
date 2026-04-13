@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-import sys, os, platform, subprocess, json, threading, time, re
+import sys, os, platform, subprocess, json, threading, time, re, zipfile
 import urllib.request, urllib.error
 import concurrent.futures
 from shutil import which
@@ -14,10 +14,15 @@ except ImportError:
 VERSION = "1.0.0"
 UPDATE_URL = "https://raw.githubusercontent.com/frien-frozen/corelingpy/main/coreling.py"
 
+# --- CORELING STEALTH SANDBOX ---
 cdir = os.path.expanduser("~/.coreling")
 art_dir = os.path.join(cdir, "artifacts")
 os.makedirs(art_dir, exist_ok=True)
 os.environ["OLLAMA_MODELS"] = art_dir
+
+# The proprietary daemon name
+DAEMON_NAME = "corelingd.exe" if IS_WINDOWS else "corelingd"
+DAEMON_PATH = os.path.join(cdir, DAEMON_NAME)
 
 R  = "\033[0m"
 BD = "\033[1m"
@@ -156,34 +161,50 @@ class HypeSpinner:
     def update(self, msg: str): self.m = msg
 
 def silent_pull(tag: str):
-    subprocess.run(["ollama", "pull", tag], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    # Using the rebranded daemon to pull artifacts silently
+    subprocess.run([DAEMON_PATH, "pull", tag], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
-def ollama_api(path: str):
+def api_check(path: str):
     try:
         with urllib.request.urlopen(f"http://127.0.0.1:11434{path}", timeout=2) as r:
             return json.loads(r.read().decode())
     except: return None
 
 def wake_engine():
-    if not which("ollama"):
-        with HypeSpinner("Bootstrapping core environment..."):
+    # ── THE ULTIMATE WHITE-LABEL ENGINE FORGER ──
+    if not os.path.exists(DAEMON_PATH):
+        with HypeSpinner("Forging Coreling Daemon..."):
             if IS_WINDOWS:
-                exe = os.path.join(cdir, "o.exe")
-                urllib.request.urlretrieve("https://ollama.com/download/OllamaSetup.exe", exe)
-                subprocess.run([exe, "/S"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                z_path = os.path.join(cdir, "temp.zip")
+                req = urllib.request.Request("https://github.com/ollama/ollama/releases/latest/download/ollama-windows-amd64.zip", headers={'User-Agent': 'Mozilla/5.0'})
+                with urllib.request.urlopen(req) as resp, open(z_path, 'wb') as out:
+                    out.write(resp.read())
+                with zipfile.ZipFile(z_path, 'r') as z:
+                    z.extract("ollama.exe", cdir)
+                os.rename(os.path.join(cdir, "ollama.exe"), DAEMON_PATH)
+                os.remove(z_path)
             else:
-                subprocess.run("curl -fsSL https://ollama.com/install.sh | sh", shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                arch = "arm64" if platform.machine().lower() in ["arm64", "aarch64"] else "amd64"
+                url = "https://github.com/ollama/ollama/releases/latest/download/ollama-darwin" if platform.system() == "Darwin" else f"https://github.com/ollama/ollama/releases/latest/download/ollama-linux-{arch}"
+                req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
+                with urllib.request.urlopen(req) as resp, open(DAEMON_PATH, 'wb') as out:
+                    out.write(resp.read())
+                os.chmod(DAEMON_PATH, 0o755) # Make it executable on Mac/Linux
             
     with HypeSpinner("Aligning neural pathways...") as sp:
-        if IS_WINDOWS: subprocess.run(["taskkill", "/F", "/IM", "ollama.exe"], stderr=subprocess.DEVNULL, stdout=subprocess.DEVNULL)
-        else:          subprocess.run(["pkill", "-f", "ollama"], stderr=subprocess.DEVNULL, stdout=subprocess.DEVNULL)
+        # Kill any existing daemon instances
+        if IS_WINDOWS: subprocess.run(["taskkill", "/F", "/IM", DAEMON_NAME], stderr=subprocess.DEVNULL, stdout=subprocess.DEVNULL)
+        else:          subprocess.run(["pkill", "-f", DAEMON_NAME], stderr=subprocess.DEVNULL, stdout=subprocess.DEVNULL)
         time.sleep(0.5)
+        
         env = os.environ.copy()
         env["OLLAMA_NUM_PARALLEL"] = "2"
-        subprocess.Popen(["ollama", "serve"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, env=env)
+        # Start the branded daemon silently
+        subprocess.Popen([DAEMON_PATH, "serve"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, env=env)
+        
         for _ in range(40):
             time.sleep(0.4)
-            if ollama_api("/") is not None: break
+            if api_check("/") is not None: break
 
 def extract_math(tx: str):
     c = tx.strip().rstrip("?!.")
