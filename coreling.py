@@ -3,6 +3,13 @@ import sys, os, platform, subprocess, json, threading, time, re, zipfile, base64
 import urllib.request, urllib.error
 import concurrent.futures
 from shutil import which, copy2
+import ssl
+
+
+try:
+    ssl._create_default_https_context = ssl._create_unverified_context
+except AttributeError:
+    pass
 
 try:
     import tty, termios
@@ -12,6 +19,7 @@ except ImportError:
     IS_WINDOWS = True
 
 VERSION = "1.0.0"
+
 UPDATE_URL = "https://raw.githubusercontent.com/frien-frozen/corelingpy/main/coreling.py"
 
 # --- CORELING STEALTH SANDBOX ---
