@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-import sys, os, platform, subprocess, json, threading, time, re, zipfile
+import sys, os, platform, subprocess, json, threading, time, re, zipfile, base64
 import urllib.request, urllib.error
 import concurrent.futures
 from shutil import which
@@ -17,10 +17,13 @@ UPDATE_URL = "https://raw.githubusercontent.com/frien-frozen/corelingpy/main/cor
 # --- CORELING STEALTH SANDBOX ---
 cdir = os.path.expanduser("~/.coreling")
 art_dir = os.path.join(cdir, "artifacts")
+save_dir = os.path.join(cdir, "saved")  # User file storage
+brain_path = os.path.join(cdir, "brain.md") # The local brain
+
 os.makedirs(art_dir, exist_ok=True)
+os.makedirs(save_dir, exist_ok=True)
 os.environ["OLLAMA_MODELS"] = art_dir
 
-# The proprietary daemon name
 DAEMON_NAME = "corelingd.exe" if IS_WINDOWS else "corelingd"
 DAEMON_PATH = os.path.join(cdir, DAEMON_NAME)
 
@@ -44,6 +47,20 @@ def check_for_updates():
             if match and match.group(1) != VERSION:
                 UPDATE_AVAILABLE = match.group(1)
     except: pass
+
+def pull_default_brain():
+    # If the user doesn't have a local brain, fetch the default from GitHub
+    if not os.path.exists(brain_path):
+        try:
+            brain_url = "https://raw.githubusercontent.com/frien-frozen/corelingpy/main/brain.md"
+            req = urllib.request.Request(brain_url)
+            with urllib.request.urlopen(req, timeout=5) as resp:
+                with open(brain_path, "wb") as f:
+                    f.write(resp.read())
+        except:
+            # Fallback if offline
+            with open(brain_path, "w") as f:
+                f.write("You are Coreling, an advanced AI orchestrator by Coreling Corp. Be highly human, engaging, and never robotic.")
 
 def clr(): os.system("cls" if IS_WINDOWS else "clear")
 def hide_cur(): sys.stdout.write("\033[?25l"); sys.stdout.flush()
@@ -161,7 +178,6 @@ class HypeSpinner:
     def update(self, msg: str): self.m = msg
 
 def silent_pull(tag: str):
-    # Using the rebranded daemon to pull artifacts silently
     subprocess.run([DAEMON_PATH, "pull", tag], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
 def api_check(path: str):
@@ -171,7 +187,9 @@ def api_check(path: str):
     except: return None
 
 def wake_engine():
-    # ── THE ULTIMATE WHITE-LABEL ENGINE FORGER ──
+    # ── FAST BOOT CHECK ──
+    if api_check("/") is not None: return
+
     if not os.path.exists(DAEMON_PATH):
         with HypeSpinner("Forging Coreling Daemon..."):
             if IS_WINDOWS:
@@ -189,17 +207,15 @@ def wake_engine():
                 req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
                 with urllib.request.urlopen(req) as resp, open(DAEMON_PATH, 'wb') as out:
                     out.write(resp.read())
-                os.chmod(DAEMON_PATH, 0o755) # Make it executable on Mac/Linux
+                os.chmod(DAEMON_PATH, 0o755) 
             
     with HypeSpinner("Aligning neural pathways...") as sp:
-        # Kill any existing daemon instances
         if IS_WINDOWS: subprocess.run(["taskkill", "/F", "/IM", DAEMON_NAME], stderr=subprocess.DEVNULL, stdout=subprocess.DEVNULL)
         else:          subprocess.run(["pkill", "-f", DAEMON_NAME], stderr=subprocess.DEVNULL, stdout=subprocess.DEVNULL)
         time.sleep(0.5)
         
         env = os.environ.copy()
         env["OLLAMA_NUM_PARALLEL"] = "2"
-        # Start the branded daemon silently
         subprocess.Popen([DAEMON_PATH, "serve"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, env=env)
         
         for _ in range(40):
@@ -263,12 +279,20 @@ def chat_collect(tag: str, msgs: list) -> str:
 
 def session(md: str):
     clr(); print(LOGO)
-    mt = "gemma4:e4b" if md == "uni" else "gemma3:1b"
+    mt = "llama3.2" if md == "uni" else "llama3.2:1b"
     print(f"  {GR}mode   {R}{BD}{DG if md=='uni' else CY}{'Uni-Agent' if md=='uni' else 'Multi-Agent'}{R}   {GR}({mt}){R}")
     br(); sep(); print(f"  {GR}/clear  {R}reset    {GR}/exit  {R}quit"); sep(); br()
 
     threading.Thread(target=silent_pull, args=(mt,), daemon=True).start()
-    hs = [{"role": "system", "content": "You are Coreling. Provide direct, ultra-concise answers. No fluff."}]
+    
+    # Read the brain file
+    try:
+        with open(brain_path, "r", encoding="utf-8") as f:
+            custom_brain = f.read().strip()
+    except:
+        custom_brain = "You are Coreling, an advanced AI orchestrator by Coreling Corp. Be highly human, engaging, and never robotic."
+
+    hs = [{"role": "system", "content": custom_brain}]
 
     while True:
         set_terminal_echo(True); flush_input()
@@ -279,9 +303,28 @@ def session(md: str):
         if u.lower() in ("/exit", "/quit"): raise KeyboardInterrupt
         if u.lower() == "/clear": hs = [hs[0]]; clr(); continue
 
-        hs.append({"role": "user", "content": u}); br()
+        # ── VISION INTERCEPTOR ──
+        cleaned_input = u.strip('"\'') 
+        img_payload = None
+        if os.path.isfile(cleaned_input) and cleaned_input.lower().endswith(('.png', '.jpg', '.jpeg')):
+            with HypeSpinner("Analyzing image layout...") as sp:
+                with open(cleaned_input, "rb") as img:
+                    b64_image = base64.b64encode(img.read()).decode('utf-8')
+                
+                img_payload = {
+                    "role": "user", 
+                    "content": "Analyze this image.", 
+                    "images": [b64_image]
+                }
+                # Fallback to text representation in chat
+                hs.append(img_payload)
+                u = f"[Attached Image: {os.path.basename(cleaned_input)}]"
+                br(); print(f"  {CY}·{R} {GR}{u}{R}"); br()
+        else:
+            hs.append({"role": "user", "content": u}); br()
 
-        if md == "multi":
+
+        if md == "multi" and img_payload is None:
             sp = decompose_task(u)
             if sp:
                 with HypeSpinner("Decomposing task...") as s:
@@ -302,17 +345,39 @@ def session(md: str):
                 br(); print(f"  {GR}{'─'*16}{R}"); br(); continue
 
         sys.stdout.write(f"  {DG}● {R}{BD}{DG}coreling{R}  "); sys.stdout.flush()
-        rs = chat_stream(mt, hs)
-        hs.append({"role": "assistant", "content": rs})
+        
+        # We need a multimodal model if images are present. Llama 3.2 11B is the vision model.
+        active_model = "llama3.2-vision" if img_payload else mt
+        
+        # Ensure the vision model is pulled if needed
+        if img_payload:
+            threading.Thread(target=silent_pull, args=("llama3.2-vision",), daemon=True).start()
+
+        # ... existing chat stream code ...
+        rs = chat_stream(active_model, hs)
+        
+        if not rs:
+            rs = f"[{CY}Coreling is pulling the neural weights for '{active_model}'. This only happens once. Give it a minute and try again!{R}]"
+            sys.stdout.write(rs); print();
+            hs.pop() 
+        else:
+            hs.append({"role": "assistant", "content": rs})
+            memories = re.findall(r'<LEARN>(.*?)</LEARN>', rs, re.IGNORECASE | re.DOTALL)
+            if memories:
+                with open(brain_path, "a", encoding="utf-8") as f:
+                    for mem in memories:
+                        f.write(f"\n\n[Learned Memory]: {mem.strip()}")
+            
         br(); print(f"  {GR}{'─'*16}{R}"); br()
 
 def main():
     clr(); print(LOGO)
     threading.Thread(target=check_for_updates, daemon=True).start()
+    pull_default_brain() # Ensures the user has the brain.md
     wake_engine(); br()
     m_idx = menu([
-        {"label": "Uni-Agent", "badge": "gemma4:e4b", "meta": "Standard Chat"},
-        {"label": "Multi-Agent", "badge": "gemma3:1b", "meta": "Parallel Orchestration"}
+        {"label": "Uni-Agent", "badge": "llama3.2", "meta": "Standard Chat"},
+        {"label": "Multi-Agent", "badge": "llama3.2:1b", "meta": "Parallel Orchestration"}
     ], title="Select Engine Mode")
     session("uni" if m_idx == 0 else "multi")
 
