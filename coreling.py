@@ -175,7 +175,7 @@ def menu(opts: list, title: str = "") -> int:
     except KeyboardInterrupt: raise
 
 class HypeSpinner:
-    F = ["⠋","⠙","⠹","⠸","⠼","⠴","⠦","⠧","⠇","⠏"]
+    F = ["⠋","⠙"," ","⠸","⠼","⠴","⠦","⠧","⠇","⠏"]
     def __init__(self, msg="Processing"):
         self.m = msg; self.s = threading.Event()
         self.t = threading.Thread(target=self.r, daemon=True)
@@ -196,16 +196,17 @@ def api_check(path: str):
             return json.loads(r.read().decode())
     except: return None
 
-def download_with_progress(url: str, dest: str, desc: str):
+# ── THE IRONCLAD DOWNLOADER ──
+def download_with_progress(url: str, dest: str, desc: str) -> bool:
     req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
     info(f"{desc}...")
     print(f"  {GR}Establishing direct uplink. This is a heavy payload...{R}\n")
     hide_cur()
     try:
-        with urllib.request.urlopen(req) as resp, open(dest, 'wb') as out:
+        with urllib.request.urlopen(req, timeout=30) as resp, open(dest, 'wb') as out:
             total = int(resp.headers.get('content-length', 0))
             downloaded = 0
-            block = 1024 * 16
+            block = 1024 * 64
             while True:
                 data = resp.read(block)
                 if not data: break
@@ -226,8 +227,13 @@ def download_with_progress(url: str, dest: str, desc: str):
         print()
         br()
         ok("Payload secured.")
+        return True
     except Exception as e:
+        print()
         print(f"\n  {RD}✗ Download Failed: {e}{R}")
+        if os.path.exists(dest):
+            os.remove(dest) # Obliterate the corrupted file
+        return False
     finally:
         show_cur()
 
@@ -297,28 +303,39 @@ def wake_engine():
         br()
         if IS_WINDOWS:
             z_path = os.path.join(cdir, "temp.zip")
-            download_with_progress("https://github.com/ollama/ollama/releases/latest/download/ollama-windows-amd64.zip", z_path, "Forging Coreling Daemon")
+            if not download_with_progress("https://github.com/ollama/ollama/releases/latest/download/ollama-windows-amd64.zip", z_path, "Forging Coreling Daemon"):
+                raise Exception("Network link severed while pulling Windows Daemon.")
             with HypeSpinner("Extracting core files...") as sp:
-                with zipfile.ZipFile(z_path, 'r') as z:
-                    z.extract("ollama.exe", cdir)
-                os.rename(os.path.join(cdir, "ollama.exe"), DAEMON_PATH)
-                os.remove(z_path)
+                try:
+                    with zipfile.ZipFile(z_path, 'r') as z:
+                        z.extract("ollama.exe", cdir)
+                    os.rename(os.path.join(cdir, "ollama.exe"), DAEMON_PATH)
+                except zipfile.BadZipFile:
+                    os.remove(z_path)
+                    raise Exception("Corrupted payload detected. Please run Coreling again.")
+                if os.path.exists(z_path): os.remove(z_path)
         elif platform.system() == "Darwin":
             t_path = os.path.join(cdir, "temp.tgz")
-            download_with_progress("https://github.com/ollama/ollama/releases/latest/download/ollama-darwin.tgz", t_path, "Forging Coreling Daemon")
+            if not download_with_progress("https://github.com/ollama/ollama/releases/latest/download/ollama-darwin.tgz", t_path, "Forging Coreling Daemon"):
+                raise Exception("Network link severed while pulling Mac Daemon.")
             with HypeSpinner("Extracting core files...") as sp:
-                with tarfile.open(t_path, 'r:gz') as tar:
-                    for member in tar.getmembers():
-                        if member.name.endswith("ollama") and not member.isdir():
-                            with tar.extractfile(member) as f_in, open(DAEMON_PATH, 'wb') as f_out:
-                                f_out.write(f_in.read())
-                            break
-            os.remove(t_path)
-            os.chmod(DAEMON_PATH, 0o755)
+                try:
+                    with tarfile.open(t_path, 'r:gz') as tar:
+                        for member in tar.getmembers():
+                            if member.name.endswith("ollama") and not member.isdir():
+                                with tar.extractfile(member) as f_in, open(DAEMON_PATH, 'wb') as f_out:
+                                    f_out.write(f_in.read())
+                                break
+                    os.chmod(DAEMON_PATH, 0o755)
+                except tarfile.TarError:
+                    os.remove(t_path)
+                    raise Exception("Corrupted payload detected. Please run Coreling again.")
+                if os.path.exists(t_path): os.remove(t_path)
         else:
             arch = "arm64" if platform.machine().lower() in ["arm64", "aarch64"] else "amd64"
             url = f"https://ollama.com/download/ollama-linux-{arch}"
-            download_with_progress(url, DAEMON_PATH, "Forging Coreling Daemon")
+            if not download_with_progress(url, DAEMON_PATH, "Forging Coreling Daemon"):
+                raise Exception("Network link severed while pulling Linux Daemon.")
             os.chmod(DAEMON_PATH, 0o755) 
             
     with HypeSpinner("Aligning neural pathways...") as sp:
@@ -559,10 +576,18 @@ if __name__ == "__main__":
     try:
         alt_screen_enter()
         main()
-    except KeyboardInterrupt: pass
+    except KeyboardInterrupt:
+        pass
+    except Exception as e:
+        alt_screen_exit()
+        show_cur()
+        print(f"\n  {RD}✗ FATAL ERROR: {e}{R}")
+        print(f"  {GR}The process was cleanly aborted. Please try again.{R}\n")
+        sys.exit(1)
     finally:
         set_terminal_echo(True)
-        alt_screen_exit(); show_cur()
+        alt_screen_exit()
+        show_cur()
         print(f"\n{DG}.coreling{R} session closed.")
         if UPDATE_AVAILABLE:
             print(f"\n  {CY}⚡ Update available:{R} {GR}v{VERSION} → {W}v{UPDATE_AVAILABLE}{R}")
