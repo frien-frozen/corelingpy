@@ -1,0 +1,6 @@
+coreling.py
+dist/
+venv/
+build/
+.DS_Store
+coreling.spec

@@ -1,7 +1,8 @@
 $d = "$env:USERPROFILE\.coreling"
 New-Item -ItemType Directory -Force -Path $d | Out-Null
-Invoke-WebRequest -Uri "https://raw.githubusercontent.com/frien-frozen/corelingpy/main/coreling.py" -OutFile "$d\coreling.py"
-Set-Content -Path "$d\coreling.bat" -Value "@echo off`r`npython `"$d\coreling.py`" %*"
+
+Write-Host "⚡ Pulling Coreling Engine..." -ForegroundColor Cyan
+Invoke-WebRequest -Uri "https://raw.githubusercontent.com/frien-frozen/corelingpy/main/coreling.exe" -OutFile "$d\coreling.exe"
 
 $userPath = [Environment]::GetEnvironmentVariable("Path", "User")
 if ($userPath -notmatch [regex]::Escape($d)) {
@@ -9,4 +10,4 @@ if ($userPath -notmatch [regex]::Escape($d)) {
     $env:Path = "$env:Path;$d"
 }
 
-Write-Host "⚡ Coreling installed perfectly. You can now type 'coreling' anywhere." -ForegroundColor Cyan
+Write-Host "⚡ Coreling installed perfectly. You can now type 'coreling' anywhere." -ForegroundColor Green
