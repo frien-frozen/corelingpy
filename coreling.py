@@ -5,7 +5,7 @@ import concurrent.futures
 from shutil import which, copy2
 import ssl
 
-
+# --- SSL BYPASS FOR STANDALONE EXECUTABLES ---
 try:
     ssl._create_default_https_context = ssl._create_unverified_context
 except AttributeError:
@@ -19,7 +19,6 @@ except ImportError:
     IS_WINDOWS = True
 
 VERSION = "1.0.0"
-
 UPDATE_URL = "https://raw.githubusercontent.com/frien-frozen/corelingpy/main/coreling.py"
 
 # --- CORELING STEALTH SANDBOX ---
@@ -197,6 +196,41 @@ def api_check(path: str):
             return json.loads(r.read().decode())
     except: return None
 
+def download_with_progress(url: str, dest: str, desc: str):
+    req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
+    info(f"{desc}...")
+    print(f"  {GR}Establishing direct uplink. This is a heavy payload...{R}\n")
+    hide_cur()
+    try:
+        with urllib.request.urlopen(req) as resp, open(dest, 'wb') as out:
+            total = int(resp.headers.get('content-length', 0))
+            downloaded = 0
+            block = 1024 * 16
+            while True:
+                data = resp.read(block)
+                if not data: break
+                out.write(data)
+                downloaded += len(data)
+                if total > 0:
+                    pct = int((downloaded / total) * 100)
+                    filled = int((30 * pct) / 100)
+                    bar = f"{CY}{'█' * filled}{GR}{'░' * (30 - filled)}{R}"
+                    t_mb = total / (1024**2)
+                    c_mb = downloaded / (1024**2)
+                    sys.stdout.write(f"\r\033[2K  {DG}●{R}  {W}Downloading{R} {bar} {CY}{pct:3}%{R}  {GR}({c_mb:.1f}/{t_mb:.1f} MB){R}")
+                    sys.stdout.flush()
+                else:
+                    c_mb = downloaded / (1024**2)
+                    sys.stdout.write(f"\r\033[2K  {DG}●{R}  {W}Downloading{R} {CY}...{R}  {GR}({c_mb:.1f} MB){R}")
+                    sys.stdout.flush()
+        print()
+        br()
+        ok("Payload secured.")
+    except Exception as e:
+        print(f"\n  {RD}✗ Download Failed: {e}{R}")
+    finally:
+        show_cur()
+
 def ensure_model(tag: str):
     try:
         with urllib.request.urlopen("http://127.0.0.1:11434/api/tags", timeout=2) as r:
@@ -260,36 +294,32 @@ def wake_engine():
     if api_check("/") is not None: return
 
     if not os.path.exists(DAEMON_PATH):
-        with HypeSpinner("Forging Coreling Daemon..."):
-            if IS_WINDOWS:
-                z_path = os.path.join(cdir, "temp.zip")
-                req = urllib.request.Request("https://github.com/ollama/ollama/releases/latest/download/ollama-windows-amd64.zip", headers={'User-Agent': 'Mozilla/5.0'})
-                with urllib.request.urlopen(req) as resp, open(z_path, 'wb') as out:
-                    out.write(resp.read())
+        br()
+        if IS_WINDOWS:
+            z_path = os.path.join(cdir, "temp.zip")
+            download_with_progress("https://github.com/ollama/ollama/releases/latest/download/ollama-windows-amd64.zip", z_path, "Forging Coreling Daemon")
+            with HypeSpinner("Extracting core files...") as sp:
                 with zipfile.ZipFile(z_path, 'r') as z:
                     z.extract("ollama.exe", cdir)
                 os.rename(os.path.join(cdir, "ollama.exe"), DAEMON_PATH)
                 os.remove(z_path)
-            elif platform.system() == "Darwin":
-                t_path = os.path.join(cdir, "temp.tgz")
-                req = urllib.request.Request("https://github.com/ollama/ollama/releases/latest/download/ollama-darwin.tgz", headers={'User-Agent': 'Mozilla/5.0'})
-                with urllib.request.urlopen(req) as resp, open(t_path, 'wb') as out:
-                    out.write(resp.read())
+        elif platform.system() == "Darwin":
+            t_path = os.path.join(cdir, "temp.tgz")
+            download_with_progress("https://github.com/ollama/ollama/releases/latest/download/ollama-darwin.tgz", t_path, "Forging Coreling Daemon")
+            with HypeSpinner("Extracting core files...") as sp:
                 with tarfile.open(t_path, 'r:gz') as tar:
                     for member in tar.getmembers():
                         if member.name.endswith("ollama") and not member.isdir():
                             with tar.extractfile(member) as f_in, open(DAEMON_PATH, 'wb') as f_out:
                                 f_out.write(f_in.read())
                             break
-                os.remove(t_path)
-                os.chmod(DAEMON_PATH, 0o755)
-            else:
-                arch = "arm64" if platform.machine().lower() in ["arm64", "aarch64"] else "amd64"
-                url = f"https://ollama.com/download/ollama-linux-{arch}"
-                req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
-                with urllib.request.urlopen(req) as resp, open(DAEMON_PATH, 'wb') as out:
-                    out.write(resp.read())
-                os.chmod(DAEMON_PATH, 0o755) 
+            os.remove(t_path)
+            os.chmod(DAEMON_PATH, 0o755)
+        else:
+            arch = "arm64" if platform.machine().lower() in ["arm64", "aarch64"] else "amd64"
+            url = f"https://ollama.com/download/ollama-linux-{arch}"
+            download_with_progress(url, DAEMON_PATH, "Forging Coreling Daemon")
+            os.chmod(DAEMON_PATH, 0o755) 
             
     with HypeSpinner("Aligning neural pathways...") as sp:
         if IS_WINDOWS: subprocess.run(["taskkill", "/F", "/IM", DAEMON_NAME], stderr=subprocess.DEVNULL, stdout=subprocess.DEVNULL)
@@ -418,7 +448,6 @@ def session(md: str):
         if u.lower() == "/clear": 
             hs = [hs[0]]; clr(); continue
             
-        # ── THE NEW WIPE COMMAND ──
         if u.lower() == "/wipe":
             with open(brain_path, "w", encoding="utf-8") as f:
                 f.write(NEW_BRAIN)
@@ -486,8 +515,6 @@ def session(md: str):
 
         sys.stdout.write(f"  {DG}● {R}{BD}{DG}coreling{R}  "); sys.stdout.flush()
         
-        # ── THE PERSISTENT VISION FIX ──
-        # Check if the AI has seen an image AT ALL during this session
         has_seen_image = any("images" in msg for msg in hs)
         active_model = "llama3.2-vision" if has_seen_image else mt
         
