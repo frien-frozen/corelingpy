@@ -1,3 +1,5 @@
+import { getCorelingSpinnerTips } from '../../constants/corelingMode.js'
+import { isCorelingBuild } from '../../constants/brand.js'
 import chalk from 'chalk'
 import { logForDebugging } from 'src/utils/debug.js'
 import { fileHistoryEnabled } from 'src/utils/fileHistory.js'
@@ -639,6 +641,15 @@ function getCustomTips(): Tip[] {
 }
 
 export async function getRelevantTips(context?: TipContext): Promise<Tip[]> {
+  if (isCorelingBuild()) {
+    return getCorelingSpinnerTips().map((tip, i) => ({
+      id: tip.id,
+      content: async () => tip.content,
+      cooldownSessions: i === 0 ? 0 : 8,
+      isRelevant: async () => true,
+    }))
+  }
+
   const settings = getInitialSettings()
   const override = settings.spinnerTipsOverride
   const customTips = getCustomTips()

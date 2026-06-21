@@ -8,6 +8,10 @@ import {
   isLocalTierInstalled,
   type DownloadProgress,
 } from '../../services/localModelManager.js'
+import {
+  ensureCorelingEngine,
+  type EngineDownloadProgress,
+} from '../../services/corelingEngineInstaller.js'
 import { ensureLlamaServer } from '../../services/llamaEngine.js'
 import { applyProviderFlag } from '../providerFlag.js'
 import {
@@ -46,16 +50,19 @@ function saveProfileForPreset(
 export async function applyCorelingModelSelectionAsync(
   preset: CorelingLaunchPreset,
   options?: {
-    onDownloadProgress?: (progress: DownloadProgress) => void
+    onDownloadProgress?: (progress: DownloadProgress | EngineDownloadProgress) => void
   },
 ): Promise<CorelingModelSwitchResult> {
   if (preset.localTier) {
     const wasInstalled = isLocalTierInstalled(preset.localTier)
 
     try {
+      await ensureCorelingEngine(progress =>
+        options?.onDownloadProgress?.(progress),
+      )
       const modelPath = await ensureLocalModel(
         preset.localTier,
-        options?.onDownloadProgress,
+        progress => options?.onDownloadProgress?.(progress),
       )
       await ensureLlamaServer(modelPath)
     } catch (error) {

@@ -11,6 +11,36 @@ export const BRAND_NAME = 'Coreling v2'
 
 export const BRAND_TAGLINE = '100% local · 100% private · Spark · Chat · Pro'
 
+/** Short name for messages (no version suffix). */
+export const PRODUCT_NAME = 'Coreling'
+
+/** CLI binary / command name. */
+export const CLI_COMMAND = 'coreling'
+
+/** Env var for Git Bash on Windows (legacy CLAUDE_CODE_GIT_BASH_PATH still honored). */
+export const GIT_BASH_PATH_ENV = 'CORELING_GIT_BASH_PATH'
+
+/** Env var override for Coreling config home (~/.coreling). */
+export const CONFIG_DIR_ENV = 'CORELING_CONFIG_DIR'
+
+/** Hidden config directory name in $HOME and in projects. */
+export function getConfigDirName(): string {
+  return isCorelingBuild() ? '.coreling' : '.openclaude'
+}
+
+/** Provider profile filename in the config home. */
+export function getProfileFileName(): string {
+  return isCorelingBuild() ? '.coreling-profile.json' : '.openclaude-profile.json'
+}
+
+export function isCorelingBuild(): boolean {
+  return BRAND_NAME.startsWith('Coreling')
+}
+
+export function welcomeMessage(): string {
+  return `Welcome to ${BRAND_NAME}`
+}
+
 /** Coreling v1 bright green (GN) — rgb() form required by theme consumers. */
 export const BRAND_ACCENT_RGB = 'rgb(80,250,123)'
 

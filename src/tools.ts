@@ -126,6 +126,9 @@ import type { ToolPermissionContext } from './Tool.js'
 import { getDenyRuleForTool } from './utils/permissions/permissions.js'
 import { hasEmbeddedSearchTools } from './utils/embeddedTools.js'
 import { isEnvTruthy } from './utils/envUtils.js'
+import { isCorelingBuild } from './constants/brand.js'
+import { tryFindGitBashPath } from './utils/windowsPaths.js'
+import { getPlatform } from './utils/platform.js'
 import { isPowerShellToolEnabled } from './utils/shell/shellToolUtils.js'
 import { isAgentSwarmsEnabled } from './utils/agentSwarmsEnabled.js'
 import { isWorktreeModeEnabled } from './utils/worktreeModeEnabled.js'
@@ -258,6 +261,28 @@ export function filterToolsByDenyRules<
 }
 
 export const getTools = (permissionContext: ToolPermissionContext): Tools => {
+  // Coreling: coding + web/computer tools only — not the full Claude Code toolbelt
+  if (isCorelingBuild()) {
+    const corelingTools: Tool[] = [
+      FileReadTool,
+      FileEditTool,
+      FileWriteTool,
+      GrepTool,
+      GlobTool,
+      WebFetchTool,
+      WebSearchTool,
+    ]
+    const psTool = getPowerShellTool()
+    if (getPlatform() === 'windows' && psTool) {
+      corelingTools.push(psTool)
+    } else if (getPlatform() !== 'windows' || tryFindGitBashPath()) {
+      corelingTools.push(BashTool)
+    } else if (psTool) {
+      corelingTools.push(psTool)
+    }
+    return filterToolsByDenyRules(corelingTools, permissionContext)
+  }
+
   // Simple mode: only Bash, Read, and Edit tools
   if (isEnvTruthy(process.env.CLAUDE_CODE_SIMPLE)) {
     // --bare + REPL mode: REPL wraps Bash/Read/Edit/etc inside the VM, so

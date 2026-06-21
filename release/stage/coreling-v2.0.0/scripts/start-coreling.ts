@@ -20,6 +20,7 @@ import {
   isLocalTierInstalled,
 } from '../src/services/localModelManager.ts'
 import { ensureLlamaServer } from '../src/services/llamaEngine.ts'
+import { promptAndSaveCloudApiKeyIfNeeded } from '../src/services/cloudKeySetup.ts'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const ROOT = join(__dirname, '..')
@@ -88,6 +89,8 @@ async function main(): Promise<void> {
   if (preset.localTier) {
     await prepareLocalEngine(preset)
   }
+
+  await promptAndSaveCloudApiKeyIfNeeded()
 
   console.log(
     `${G}▸${R} Coreling v2 · ${preset.label} ${D}(change with /model)${R}\n`,

@@ -64,6 +64,7 @@ export async function downloadLocalModel(
   const response = await fetch(def.downloadUrl, {
     redirect: 'follow',
     signal: AbortSignal.timeout(60 * 60 * 1000),
+    headers: { 'User-Agent': 'Coreling/2.0' },
   })
 
   if (!response.ok || !response.body) {

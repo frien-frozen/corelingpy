@@ -1,4 +1,5 @@
-import type { APIError } from '@anthropic-ai/sdk'
+import { isCorelingBuild } from '../../constants/brand.js'
+import { localizeProviderErrorMessage } from '../../constants/corelingProviderCopy.js'
 
 // SSL/TLS error codes from OpenSSL (used by both Node.js and Bun)
 // See: https://www.openssl.org/docs/man3.1/man3/X509_STORE_CTX_get_error.html
@@ -253,8 +254,9 @@ export function formatAPIError(error: APIError): string {
   }
 
   const sanitizedMessage = sanitizeAPIError(error)
-  // Use sanitized message if it's different from the original (i.e., HTML was sanitized)
-  return sanitizedMessage !== error.message && sanitizedMessage.length > 0
-    ? sanitizedMessage
-    : error.message
+  const raw =
+    sanitizedMessage !== error.message && sanitizedMessage.length > 0
+      ? sanitizedMessage
+      : error.message
+  return localizeProviderErrorMessage(raw)
 }

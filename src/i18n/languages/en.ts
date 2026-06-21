@@ -43,6 +43,7 @@ export const en = {
   'commands.install-github-app.description':
     'Set up Claude GitHub Actions for a repository',
   'commands.knowledge.description': 'Manage native Knowledge Graph',
+  'commands.lang.description': 'Switch interface language (en · uz)',
   'commands.login.description': 'Sign in with your Anthropic account',
   'commands.logout.description': 'Sign out from your Anthropic account',
   'commands.lsp.description':

@@ -1,4 +1,4 @@
-export type Locale = 'en' | 'vi'
+export type Locale = 'en' | 'vi' | 'uz'
 
 export type LocalizationKey = string
 

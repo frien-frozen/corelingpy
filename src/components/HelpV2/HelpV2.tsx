@@ -8,6 +8,7 @@ import { useTerminalSize } from '../../hooks/useTerminalSize.js';
 import { Box, Link, Text } from '../../ink.js';
 import { useKeybinding } from '../../keybindings/useKeybinding.js';
 import { getPublicBuildVersion } from '../../utils/version.js';
+import { BRAND_NAME } from '../../constants/brand.js';
 import { Pane } from '../design-system/Pane.js';
 import { Tab, Tabs } from '../design-system/Tabs.js';
 import { Commands } from './Commands.js';
@@ -140,7 +141,7 @@ export function HelpV2(t0) {
   const publicBuildVersion = getPublicBuildVersion();
   let t6;
   if ($[31] !== publicBuildVersion || $[32] !== tabs) {
-    t6 = <Tabs title={false ? "/help" : `OpenClaude v${publicBuildVersion}`} color="professionalBlue" defaultTab="general">{tabs}</Tabs>;
+    t6 = <Tabs title={false ? "/help" : `${BRAND_NAME} v${publicBuildVersion}`} color="professionalBlue" defaultTab="general">{tabs}</Tabs>;
     $[31] = publicBuildVersion;
     $[32] = tabs;
     $[33] = t6;

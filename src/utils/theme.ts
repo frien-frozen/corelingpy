@@ -1,4 +1,5 @@
 import chalk, { Chalk } from 'chalk'
+import { isCorelingBuild, BRAND_ACCENT_RGB } from '../constants/brand.js'
 import { env } from './env.js'
 
 export type Theme = {
@@ -612,20 +613,36 @@ const darkDaltonizedTheme: Theme = {
   rainbow_violet_shimmer: 'rgb(230,180,210)',
 }
 
+function applyCorelingThemeOverrides(theme: Theme): Theme {
+  if (!isCorelingBuild()) {
+    return theme
+  }
+  return {
+    ...theme,
+    autoAccept: BRAND_ACCENT_RGB,
+    permission: 'rgb(100,220,150)',
+    permissionShimmer: 'rgb(120,255,160)',
+    suggestion: 'rgb(100,220,150)',
+    remember: 'rgb(100,220,150)',
+    merged: BRAND_ACCENT_RGB,
+    rate_limit_fill: 'rgb(100,220,150)',
+  }
+}
+
 export function getTheme(themeName: ThemeName): Theme {
   switch (themeName) {
     case 'light':
-      return lightTheme
+      return applyCorelingThemeOverrides(lightTheme)
     case 'light-ansi':
-      return lightAnsiTheme
+      return applyCorelingThemeOverrides(lightAnsiTheme)
     case 'dark-ansi':
-      return darkAnsiTheme
+      return applyCorelingThemeOverrides(darkAnsiTheme)
     case 'light-daltonized':
-      return lightDaltonizedTheme
+      return applyCorelingThemeOverrides(lightDaltonizedTheme)
     case 'dark-daltonized':
-      return darkDaltonizedTheme
+      return applyCorelingThemeOverrides(darkDaltonizedTheme)
     default:
-      return darkTheme
+      return applyCorelingThemeOverrides(darkTheme)
   }
 }
 

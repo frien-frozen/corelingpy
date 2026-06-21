@@ -101,9 +101,7 @@ if (existsSync(distPath)) {
     bun run build
 
   Or run directly with Bun:
-    bun run dev
-
-  See README.md for setup instructions.
+    bun run start
 `)
   process.exit(1)
 }

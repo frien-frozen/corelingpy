@@ -34,9 +34,12 @@ if (typeof globalThis.File === 'undefined') {
 // eslint-disable-next-line custom-rules/no-top-level-side-effects
 process.env.CLAUDE_CODE_DISABLE_EXPERIMENTAL_BETAS ??= 'true'
 
-// Bugfix for corepack auto-pinning, which adds yarnpkg to peoples' package.jsons
-// eslint-disable-next-line custom-rules/no-top-level-side-effects
+// eslint-disable-next-line custom-rules/no-top-level-side-effects, custom-rules/no-process-env-top-level
 process.env.COREPACK_ENABLE_AUTO_PIN = '0';
+
+import { applyCorelingRuntimeDefaults } from '../constants/corelingMode.js'
+// eslint-disable-next-line custom-rules/no-top-level-side-effects
+applyCorelingRuntimeDefaults()
 
 // Set max heap size for child processes. The current CLI process is already
 // running by this point; the package launcher raises its heap before importing
@@ -311,6 +314,11 @@ export async function main(
   {
     const { BRAND_NAME } = await import('../constants/brand.js')
     if (BRAND_NAME.startsWith('Coreling')) {
+      const { ensureCorelingLocalEngineAtStartup } = await import(
+        '../services/corelingStartupEngine.js'
+      )
+      await ensureCorelingLocalEngineAtStartup()
+
       const { promptAndSaveCloudApiKeyIfNeeded, shouldPromptCorelingCloudKey } =
         await import('../services/cloudKeySetup.js')
       if (shouldPromptCorelingCloudKey(args)) {

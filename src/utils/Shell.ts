@@ -147,8 +147,10 @@ export async function findSuitableShell(): Promise<string> {
   // If no valid shell found, throw a helpful error
   if (!shellPath) {
     const errorMsg =
-      'No suitable shell found. Claude CLI requires a Posix shell environment. ' +
-      'Please ensure you have a valid shell installed and the SHELL environment variable set.'
+      `${BRAND_NAME} could not find a shell to run commands. ` +
+      (process.platform === 'win32'
+        ? 'Install Git for Windows (git-scm.com) or ensure PowerShell is on PATH.'
+        : 'Install bash or zsh and set the SHELL environment variable.')
     logError(new Error(errorMsg))
     throw new Error(errorMsg)
   }

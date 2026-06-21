@@ -22,8 +22,7 @@
     "src/entrypoints/sdk.d.ts",
     "src/entrypoints/sdk/coreTypes.generated.ts",
     "scripts/windows/openclaude-aliases.ps1",
-    "docs/windows-aliases-and-launchers.md",
-    "README.md"
+    "docs/windows-aliases-and-launchers.md"
   ],
   "scripts": {
     "build": "bun run scripts/build.ts",
@@ -152,7 +151,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/Gitlawb/openclaude.git"
+    "url": "https://github.com/frien-frozen/corelingpy.git"
   },
   "keywords": [
     "claude-code",

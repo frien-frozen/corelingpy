@@ -1,3 +1,4 @@
+import { BRAND_NAME, CLI_COMMAND } from '../../constants/brand.js';
 import figures from 'figures';
 import { homedir } from 'os';
 import * as React from 'react';
@@ -37,7 +38,7 @@ export function createWhatsNewFeed(releaseNotes: string[]): FeedConfig {
     };
   });
   return {
-    title: "OpenClaude Updates",
+    title: `${BRAND_NAME} Updates`,
     lines,
     footer: lines.length > 0 ? '/release-notes for more' : undefined,
     emptyMessage: 'Check /release-notes for recent updates'
@@ -56,7 +57,7 @@ export function createProjectOnboardingFeed(steps: Step[]): FeedConfig {
       text: `${checkmark}${text}`
     };
   });
-  const warningText = getCwd() === homedir() ? 'Note: You have launched openclaude in your home directory. For the best experience, launch it in a project directory instead.' : undefined;
+  const warningText = getCwd() === homedir() ? `Note: You have launched ${CLI_COMMAND} in your home directory. For the best experience, launch it in a project directory instead.` : undefined;
   if (warningText) {
     lines.push({
       text: warningText
@@ -69,7 +70,7 @@ export function createProjectOnboardingFeed(steps: Step[]): FeedConfig {
 }
 export function createGuestPassesFeed(): FeedConfig {
   const reward = getCachedReferrerReward();
-  const subtitle = reward ? `Share OpenClaude and earn ${formatCreditAmount(reward)} of extra usage` : 'Share OpenClaude with friends';
+  const subtitle = reward ? `Share ${BRAND_NAME} and earn ${formatCreditAmount(reward)} of extra usage` : `Share ${BRAND_NAME} with friends`;
   return {
     title: '3 guest passes',
     lines: [],

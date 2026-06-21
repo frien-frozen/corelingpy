@@ -661,8 +661,10 @@ function ModelPickerWrapper({
     if (discoveryContext?.kind === 'coreling' && model) {
       const preset = findPresetByModel(model)
       setSwitchingLabel(
-        preset?.category === 'local' && preset.description.includes('download')
-          ? `Downloading ${preset.label}…`
+        preset?.category === 'local'
+          ? preset.description.includes('download')
+            ? `Downloading ${preset.label}…`
+            : `Starting ${preset.label} (engine + model)…`
           : `Switching to ${preset?.label ?? model}…`,
       )
       void applyCorelingModelByName(model).then(switchResult => {

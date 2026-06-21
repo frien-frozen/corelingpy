@@ -1,10 +1,14 @@
 import type { RGBColor as RGBColorString } from '../../ink/styles.js'
 import type { RGBColor as RGBColorType } from './types.js'
 
-// Dot-pulse sweep. All width-1 chars from basic punctuation / Geometric
-// Shapes with broad font support, so no per-terminal variants are needed
-// (the old asterisk set required Ghostty/darwin special-casing for ✽/✳).
+// Coreling: rotating square + cube frames. Default: dot-pulse sweep.
+import { isCorelingBuild } from '../../constants/brand.js'
+
 export function getDefaultCharacters(): string[] {
+  if (isCorelingBuild()) {
+    // Interleaved square rotation (◰◳◲◱) and cube faces (▣▤▥▦)
+    return ['◰', '▣', '◳', '▤', '◲', '▥', '◱', '▦']
+  }
   return ['·', '∘', '○', '◎', '◉', '●']
 }
 

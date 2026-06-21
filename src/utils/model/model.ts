@@ -6,6 +6,8 @@
  * during dead code elimination
  */
 import { getMainLoopModelOverride } from '../../bootstrap/state.js'
+import { isCorelingBuild } from '../../constants/brand.js'
+import { findPresetByModel } from '../../constants/corelingModels.js'
 import {
   getSubscriptionType,
   isClaudeAISubscriber,
@@ -682,6 +684,13 @@ function maskModelCodename(baseName: string): string {
 }
 
 export function renderModelName(model: ModelName): string {
+  if (isCorelingBuild()) {
+    const preset = findPresetByModel(model)
+    if (preset) {
+      return preset.label
+    }
+  }
+
   const publicName = getPublicModelDisplayName(model)
   if (publicName) {
     return publicName

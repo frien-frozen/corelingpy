@@ -2,6 +2,8 @@ import { feature } from 'bun:bundle';
 import * as React from 'react';
 import { memo, useMemo } from 'react';
 import { getKairosActive, getSdkBetas } from '../bootstrap/state.js';
+import { corelingContextLabel } from '../constants/corelingMode.js';
+import { isCorelingBuild } from '../constants/brand.js';
 import { getTotalCost } from '../cost-tracker.js';
 import { useMainLoopModel } from '../hooks/useMainLoopModel.js';
 import type { ReadonlySettings } from '../hooks/useSettings.js';
@@ -63,7 +65,7 @@ export function buildBuiltinStatusSegments(data: BuiltinStatusData): StatusSegme
     segments.push({
       key: 'context',
       priority: 1,
-      text: `ctx ${pct}%`,
+      text: isCorelingBuild() ? corelingContextLabel(pct) : `ctx ${pct}%`,
       // Thresholds align with the auto-compact warnings
       color: pct >= 90 ? 'error' : pct >= 70 ? 'warning' : undefined
     });

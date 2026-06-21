@@ -1,5 +1,6 @@
 import { detectLocale } from './locale.js'
 import { en } from './languages/en.js'
+import { uz } from './languages/uz.js'
 import { vi } from './languages/vi.js'
 import type {
   I18nDictionary,
@@ -10,6 +11,7 @@ import type {
 const dictionaries: Record<string, I18nDictionary> = {
   en,
   vi,
+  uz,
 }
 
 export { detectLocale }

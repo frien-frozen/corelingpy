@@ -183,12 +183,17 @@ import {
   clearPluginSkillsCache,
 } from './utils/plugins/loadPluginCommands.js'
 import memoize from 'lodash-es/memoize.js'
+import {
+  isCorelingCommandAllowed,
+} from './constants/corelingMode.js'
+import { isCorelingBuild } from './constants/brand.js'
 import { isUsing3PServices, isClaudeAISubscriber } from './utils/auth.js'
 import { isFirstPartyAnthropicBaseUrl } from './utils/model/providers.js'
 import env from './commands/env/index.js'
 import exit from './commands/exit/index.js'
 import exportCommand from './commands/export/index.js'
 import model from './commands/model/index.js'
+import lang from './commands/lang/index.js'
 import tag from './commands/tag/index.js'
 import outputStyle from './commands/output-style/index.js'
 import remoteEnv from './commands/remote-env/index.js'
@@ -314,6 +319,7 @@ const COMMANDS = memoize((): Command[] => [
   memory,
   mobile,
   model,
+  lang,
   onboardGithub,
   outputStyle,
   remoteEnv,
@@ -485,6 +491,12 @@ export function meetsAvailabilityRequirement(cmd: Command | null | undefined): b
  * because loading is expensive (disk I/O, dynamic imports).
  */
 const loadAllCommands = memoize(async (cwd: string): Promise<Command[]> => {
+  if (isCorelingBuild()) {
+    return COMMANDS().filter(isCommand).filter(cmd =>
+      isCorelingCommandAllowed(cmd.name),
+    )
+  }
+
   const [
     { skillDirCommands, pluginSkills, bundledSkills, builtinPluginSkills },
     pluginCommands,
@@ -513,6 +525,12 @@ const loadAllCommands = memoize(async (cwd: string): Promise<Command[]> => {
  */
 export async function getCommands(cwd: string): Promise<Command[]> {
   const allCommands = await loadAllCommands(cwd)
+
+  if (isCorelingBuild()) {
+    return allCommands.filter(
+      _ => meetsAvailabilityRequirement(_) && isCommandEnabled(_),
+    )
+  }
 
   // Get dynamic skills discovered during file operations
   const dynamicSkills = getDynamicSkills()

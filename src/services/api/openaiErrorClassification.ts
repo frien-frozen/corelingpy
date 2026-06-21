@@ -1,3 +1,6 @@
+import { isCorelingBuild } from '../../constants/brand.js'
+import { localEngineConnectionRefusedHint } from '../../constants/corelingProviderCopy.js'
+
 export type OpenAICompatibilityFailureCategory =
   | 'connection_refused'
   | 'localhost_resolution_failed'
@@ -291,7 +294,9 @@ export function classifyOpenAINetworkFailure(
       message,
       code,
       hint: isLocalHost
-        ? 'Connection to the local provider was refused. Ensure the local server is running and listening on the configured port.'
+        ? isCorelingBuild()
+          ? localEngineConnectionRefusedHint()
+          : 'Connection to the local provider was refused. Ensure the local server is running and listening on the configured port.'
         : 'Connection was refused by the provider endpoint. Ensure the server is running and the port is correct.',
     }
   }

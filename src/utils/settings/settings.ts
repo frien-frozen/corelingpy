@@ -13,6 +13,7 @@ import { uniq } from '../array.js'
 import { logForDebugging } from '../debug.js'
 import { logForDiagnosticsNoPII } from '../diagLogs.js'
 import { getClaudeConfigHomeDir, isEnvTruthy } from '../envUtils.js'
+import { getConfigDirName } from '../../constants/brand.js'
 import { getErrnoCode, isENOENT } from '../errors.js'
 import { writeFileSyncAndFlush_DEPRECATED } from '../file.js'
 import { readFileSync } from '../fileRead.js'
@@ -298,11 +299,12 @@ export function getSettingsFilePathForSource(
 export function getRelativeSettingsFilePathForSource(
   source: 'projectSettings' | 'localSettings',
 ): string {
+  const dir = getConfigDirName()
   switch (source) {
     case 'projectSettings':
-      return '.openclaude/settings.json'
+      return `${dir}/settings.json`
     case 'localSettings':
-      return '.openclaude/settings.local.json'
+      return `${dir}/settings.local.json`
   }
 }
 

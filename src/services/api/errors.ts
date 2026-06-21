@@ -52,6 +52,12 @@ import {
 import { shouldProcessRateLimits } from '../rateLimitMocking.js' // Used for /mock-limits command
 import { extractConnectionErrorDetails, formatAPIError } from './errorUtils.js'
 import {
+  localEngineConnectionHint,
+  localEngineConnectionRefusedHint,
+  localizeProviderErrorMessage,
+} from '../../constants/corelingProviderCopy.js'
+import { isCorelingBuild } from '../../constants/brand.js'
+import {
   extractOpenAICategoryHost,
   extractOpenAICategoryMarker,
   isLocalhostLikeHost,
@@ -81,10 +87,21 @@ function mapOpenAICompatibilityFailureToAssistantMessage(options: {
 
   switch (options.category) {
     case 'localhost_resolution_failed':
+      return createAssistantAPIErrorMessage({
+        content: isLocalhost
+          ? isCorelingBuild()
+            ? localEngineConnectionHint()
+            : 'Localhost failed for this request. Retry with 127.0.0.1 and confirm Ollama is serving on the configured port.'
+          : `Could not connect to the provider at ${options.host}. Verify OPENAI_BASE_URL is correct and that the host is reachable.`,
+        error: 'unknown',
+      })
+
     case 'connection_refused':
       return createAssistantAPIErrorMessage({
         content: isLocalhost
-          ? 'Could not connect to the local OpenAI-compatible provider. Ensure the local server is running, then use OPENAI_BASE_URL=http://127.0.0.1:11434/v1 for Ollama.'
+          ? isCorelingBuild()
+            ? localEngineConnectionRefusedHint()
+            : 'Could not connect to the local OpenAI-compatible provider. Ensure the local server is running, then use OPENAI_BASE_URL=http://127.0.0.1:11434/v1 for Ollama.'
           : `Could not connect to the provider at ${options.host}. Verify OPENAI_BASE_URL is correct and that the host is reachable.`,
         error: 'unknown',
       })
@@ -106,7 +123,9 @@ function mapOpenAICompatibilityFailureToAssistantMessage(options: {
 
     case 'model_not_found':
       return createAssistantAPIErrorMessage({
-        content: `The selected model (${options.model}) is not available on this provider. Run ${switchCmd} to choose another model, or verify installed local models (for Ollama: ollama list).`,
+        content: isCorelingBuild()
+          ? `The selected model (${options.model}) is not available. Run ${switchCmd} to pick Spark · Chat · Pro or a cloud model.`
+          : `The selected model (${options.model}) is not available on this provider. Run ${switchCmd} to choose another model, or verify installed local models (for Ollama: ollama list).`,
         error: 'invalid_request',
       })
 

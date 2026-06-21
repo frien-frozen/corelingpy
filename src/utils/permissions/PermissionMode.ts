@@ -1,5 +1,6 @@
 import { feature } from 'bun:bundle'
 import z from 'zod/v4'
+import { isCorelingBuild } from '../../constants/brand.js'
 import { PAUSE_ICON } from '../../constants/figures.js'
 // Types extracted to src/types/permissions.ts to break import cycles
 import {
@@ -30,6 +31,7 @@ type ModeColorKey =
   | 'autoAccept'
   | 'error'
   | 'warning'
+  | 'brand'
 
 type PermissionModeConfig = {
   title: string
@@ -112,6 +114,32 @@ export function isExternalPermissionMode(
 }
 
 function getModeConfig(mode: PermissionMode): PermissionModeConfig {
+  if (isCorelingBuild()) {
+    const coreling: Partial<Record<PermissionMode, PermissionModeConfig>> = {
+      plan: {
+        title: 'Plan only',
+        shortTitle: 'Plan',
+        symbol: PAUSE_ICON,
+        color: 'planMode',
+        external: 'plan',
+      },
+      acceptEdits: {
+        title: 'Auto-apply',
+        shortTitle: 'Auto',
+        symbol: '●●',
+        color: 'brand',
+        external: 'acceptEdits',
+      },
+      bypassPermissions: {
+        title: 'Trust all',
+        shortTitle: 'Trust',
+        symbol: '●●',
+        color: 'warning',
+        external: 'bypassPermissions',
+      },
+    }
+    return coreling[mode] ?? PERMISSION_MODE_CONFIG[mode] ?? PERMISSION_MODE_CONFIG.default!
+  }
   return PERMISSION_MODE_CONFIG[mode] ?? PERMISSION_MODE_CONFIG.default!
 }
 

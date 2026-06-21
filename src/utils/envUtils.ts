@@ -10,6 +10,10 @@ import {
 } from 'fs'
 import { homedir } from 'os'
 import { dirname, join } from 'path'
+import {
+  getConfigDirName,
+  isCorelingBuild,
+} from '../constants/brand.js'
 
 const LEGACY_GLOBAL_CONFIG_FILE_RE =
   /^\.claude(?:-(?:custom|local|staging)-oauth)?\.json$/
@@ -114,27 +118,38 @@ export function migrateLegacyClaudeConfigHome(options?: {
   }
 
   const homeDir = options?.homeDir ?? homedir()
+  const configDirName = getConfigDirName()
+  const configHomeDir = join(homeDir, configDirName)
   const openClaudeDir = join(homeDir, '.openclaude')
   const legacyClaudeDir = join(homeDir, '.claude')
 
   try {
     const legacyDirExists = pathIsDirectory(legacyClaudeDir)
+    const openClaudeDirExists = pathIsDirectory(openClaudeDir)
     const legacyGlobalConfigFiles = getLegacyGlobalConfigFiles(homeDir)
 
-    if (!legacyDirExists && legacyGlobalConfigFiles.length === 0) {
+    if (
+      !legacyDirExists &&
+      !openClaudeDirExists &&
+      legacyGlobalConfigFiles.length === 0
+    ) {
       return true
     }
 
     if (legacyDirExists) {
-      copyMissingPathSync(legacyClaudeDir, openClaudeDir)
+      copyMissingPathSync(legacyClaudeDir, configHomeDir)
+    }
+
+    if (isCorelingBuild() && openClaudeDirExists) {
+      copyMissingPathSync(openClaudeDir, configHomeDir)
+    } else if (!isCorelingBuild() && legacyDirExists) {
+      // OpenClaude fork: .claude → .openclaude (handled above via configHomeDir)
     }
 
     for (const legacyFile of legacyGlobalConfigFiles) {
-      const openClaudeFile = legacyFile.replace(/^\.claude/, '.openclaude')
-      copyMissingPathSync(
-        join(homeDir, legacyFile),
-        join(homeDir, openClaudeFile),
-      )
+      const targetPrefix = isCorelingBuild() ? '.coreling' : '.openclaude'
+      const targetFile = legacyFile.replace(/^\.claude/, targetPrefix)
+      copyMissingPathSync(join(homeDir, legacyFile), join(homeDir, targetFile))
     }
     return true
   } catch {
@@ -152,10 +167,14 @@ export function migrateLegacyClaudeConfigHome(options?: {
 let warnedAboutConflictingConfigDirEnvs = false
 
 export function resolveConfigDirEnv(options?: {
+  corelingConfigDir?: string
   openClaudeConfigDir?: string
   legacyConfigDir?: string
   warn?: (message: string) => void
 }): string | undefined {
+  if (options?.corelingConfigDir) {
+    return options.corelingConfigDir
+  }
   const open = options?.openClaudeConfigDir
   const legacy = options?.legacyConfigDir
   if (open && legacy && open !== legacy && !warnedAboutConflictingConfigDirEnvs) {
@@ -185,9 +204,7 @@ export function resolveClaudeConfigHomeDir(options?: {
   }
 
   const homeDir = options?.homeDir ?? homedir()
-  const openClaudeDir = join(homeDir, '.openclaude')
-
-  return openClaudeDir.normalize('NFC')
+  return join(homeDir, getConfigDirName()).normalize('NFC')
 }
 
 let claudeConfigHomeDirOverride: string | undefined
@@ -208,11 +225,14 @@ export const getClaudeConfigHomeDir = memoize(
     }
 
     const configDirEnv = resolveConfigDirEnv({
+      corelingConfigDir: isCorelingBuild()
+        ? process.env.CORELING_CONFIG_DIR
+        : undefined,
       openClaudeConfigDir: process.env.OPENCLAUDE_CONFIG_DIR,
       legacyConfigDir: process.env.CLAUDE_CONFIG_DIR,
       warn: message => {
         // eslint-disable-next-line no-console
-        console.warn(`[openclaude] ${message}`)
+        console.warn(`[${isCorelingBuild() ? 'coreling' : 'openclaude'}] ${message}`)
       },
     })
     const homeDir = homedir()
@@ -220,13 +240,13 @@ export const getClaudeConfigHomeDir = memoize(
       configDirEnv,
       homeDir,
     })
-    const openClaudeDir = join(homeDir, '.openclaude')
+    const configHomeDir = join(homeDir, getConfigDirName())
     const legacyClaudeDir = join(homeDir, '.claude')
 
     if (
       !configDirEnv &&
       !migrationSucceeded &&
-      !pathIsDirectory(openClaudeDir) &&
+      !pathIsDirectory(configHomeDir) &&
       pathExists(legacyClaudeDir)
     ) {
       return legacyClaudeDir.normalize('NFC')
@@ -238,7 +258,7 @@ export const getClaudeConfigHomeDir = memoize(
     })
   },
   () =>
-    `${claudeConfigHomeDirOverride ?? ''}\0${process.env.OPENCLAUDE_CONFIG_DIR ?? ''}\0${process.env.CLAUDE_CONFIG_DIR ?? ''}`,
+    `${claudeConfigHomeDirOverride ?? ''}\0${process.env.CORELING_CONFIG_DIR ?? ''}\0${process.env.OPENCLAUDE_CONFIG_DIR ?? ''}\0${process.env.CLAUDE_CONFIG_DIR ?? ''}\0${isCorelingBuild() ? 'coreling' : 'openclaude'}`,
 )
 
 export function getTeamsDir(): string {

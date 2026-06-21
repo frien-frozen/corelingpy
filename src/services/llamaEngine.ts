@@ -2,6 +2,7 @@ import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { spawn, spawnSync } from 'node:child_process'
 import { getCorelingDir } from './localModelManager.js'
+import { ensureCorelingEngine } from './corelingEngineInstaller.js'
 
 const PORT = Number(process.env.CORELING_LLAMA_PORT ?? '8080')
 const CTX_SIZE = String(process.env.CORELING_CTX_SIZE ?? '32768')
@@ -79,8 +80,12 @@ export async function ensureLlamaServer(modelPath: string): Promise<void> {
 
   const daemon = getDaemonPath()
   if (!existsSync(daemon)) {
+    await ensureCorelingEngine()
+  }
+
+  if (!existsSync(daemon)) {
     throw new Error(
-      `Coreling engine not found at ${daemon}. Run corelingv1 once or place corelingd there.`,
+      `Coreling engine not found at ${daemon}. Download failed — check your network connection.`,
     )
   }
 

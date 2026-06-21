@@ -24,6 +24,16 @@ cp package.json "$STAGE/package.json"
 cp scripts/start-coreling.ts "$STAGE/scripts/start-coreling.ts"
 cp scripts/start-llama-server.ts "$STAGE/scripts/start-llama-server.ts"
 
+# Runtime externals (ripgrep binary, optional cloud SDKs) — not inlined in cli.mjs
+echo "Installing production dependencies for release..."
+(
+  cd "$STAGE"
+  # --bin-links=false: avoid symlinks in node_modules/.bin (Windows tar cannot extract them)
+  npm install --omit=dev --no-audit --no-fund --ignore-scripts --bin-links=false 2>/dev/null \
+    || npm install --omit=dev --no-audit --no-fund --ignore-scripts --bin-links=false
+  rm -rf node_modules/.bin
+)
+
 chmod +x "$STAGE/bin/coreling"
 
 tar -czf "$ARCHIVE" -C "$OUT_DIR/stage" "coreling-v${VERSION}"

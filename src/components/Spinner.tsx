@@ -14,6 +14,8 @@ import { formatDuration, formatNumber } from '../utils/format.js';
 import type { Theme } from 'src/utils/theme.js';
 import { activityManager } from '../utils/activityManager.js';
 import { getSpinnerVerbs } from '../constants/spinnerVerbs.js';
+import { corelingSpinnerTipPrefix } from '../constants/corelingMode.js';
+import { isCorelingBuild } from '../constants/brand.js';
 import { MessageResponse } from './MessageResponse.js';
 import { TaskListV2 } from './TaskListV2.js';
 import { useTasksV2 } from '../hooks/useTasksV2.js';
@@ -168,7 +170,10 @@ function SpinnerWithVerbInner({
   // Leader's own verb (always the leader's, regardless of who is foregrounded)
   const leaderVerb = overrideMessage ?? currentTodo?.activeForm ?? currentTodo?.subject ?? randomVerb;
   const effectiveVerb = foregroundedTeammate && !foregroundedTeammate.isIdle ? foregroundedTeammate.spinnerVerb ?? randomVerb : leaderVerb;
-  const message = effectiveVerb + '…';
+  const message =
+    isCorelingBuild() && /[.!?…]$/.test(effectiveVerb)
+      ? effectiveVerb
+      : `${effectiveVerb}…`;
 
   // Track CLI activity when spinner is active
   useEffect(() => {
@@ -244,8 +249,8 @@ function SpinnerWithVerbInner({
   // cause re-renders that refresh this in practice.
   let contextTipsActive = false;
   const tipsEnabled = settings.spinnerTipsEnabled !== false;
-  const showClearTip = tipsEnabled && elapsedSnapshot > 1_800_000;
-  const showBtwTip = tipsEnabled && elapsedSnapshot > 30_000 && !getGlobalConfig().btwUseCount;
+  const showClearTip = tipsEnabled && !isCorelingBuild() && elapsedSnapshot > 1_800_000;
+  const showBtwTip = tipsEnabled && !isCorelingBuild() && elapsedSnapshot > 30_000 && !getGlobalConfig().btwUseCount;
   const effectiveTip = contextTipsActive ? undefined : showClearTip && !nextTask ? 'Use /clear to start fresh when switching topics and free up context' : showBtwTip && !nextTask ? "Use /btw to ask a quick side question without interrupting Claude's current work" : spinnerTip;
 
   // Budget text (internal-only) — shown above the tip line
@@ -283,7 +288,7 @@ function SpinnerWithVerbInner({
             </MessageResponse>}
           {(nextTask || effectiveTip) && <MessageResponse>
               <Text dimColor>
-                {nextTask ? `Next: ${nextTask.subject}` : `Tip: ${effectiveTip}`}
+                {nextTask ? `Next: ${nextTask.subject}` : isCorelingBuild() ? `${corelingSpinnerTipPrefix()}: ${effectiveTip}` : `Tip: ${effectiveTip}`}
               </Text>
             </MessageResponse>}
         </Box> : null}

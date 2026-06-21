@@ -1,11 +1,18 @@
 import memoize from 'lodash-es/memoize.js'
 import * as path from 'path'
 import * as pathWin32 from 'path/win32'
+import {
+  BRAND_NAME,
+  GIT_BASH_PATH_ENV,
+  isCorelingBuild,
+} from '../constants/brand.js'
 import { getCwd } from './cwd.js'
 import { logForDebugging } from './debug.js'
 import { execSync_DEPRECATED } from './execSyncWrapper.js'
 import { memoizeWithLRU } from './memoize.js'
 import { getPlatform } from './platform.js'
+
+const LEGACY_GIT_BASH_PATH_ENV = 'CLAUDE_CODE_GIT_BASH_PATH'
 
 /**
  * Check if a file or directory exists on Windows using the dir command
@@ -79,47 +86,89 @@ function findExecutable(executable: string): string | null {
   }
 }
 
+function resolveConfiguredGitBashPath(): string | null {
+  for (const envVar of [GIT_BASH_PATH_ENV, LEGACY_GIT_BASH_PATH_ENV]) {
+    const configured = process.env[envVar]?.trim()
+    if (!configured) continue
+    if (checkPathExists(configured)) {
+      return configured
+    }
+    // biome-ignore lint/suspicious/noConsole:: intentional console output
+    console.error(
+      `${BRAND_NAME} was unable to find ${envVar} path "${configured}"`,
+    )
+    // eslint-disable-next-line custom-rules/no-process-exit
+    process.exit(1)
+  }
+  return null
+}
+
+function resolveDiscoveredGitBashPath(): string | null {
+  const gitPath = findExecutable('git')
+  if (!gitPath) return null
+
+  const bashPath = pathWin32.join(gitPath, '..', '..', 'bin', 'bash.exe')
+  if (checkPathExists(bashPath)) {
+    return bashPath
+  }
+  return null
+}
+
+function gitBashMissingMessage(): string {
+  return (
+    `${BRAND_NAME} on Windows requires git-bash (https://git-scm.com/downloads/win). ` +
+    `If installed but not in PATH, set an environment variable pointing to bash.exe, e.g. ` +
+    `${GIT_BASH_PATH_ENV}=C:\\Program Files\\Git\\bin\\bash.exe`
+  )
+}
+
+/**
+ * Locate git-bash without exiting. Used during startup on Coreling so chat
+ * works even when Git for Windows is not installed yet.
+ */
+export function tryFindGitBashPath(): string | null {
+  return resolveConfiguredGitBashPath() ?? resolveDiscoveredGitBashPath()
+}
+
 /**
  * If Windows, set the SHELL environment variable to git-bash path.
  * This is used by BashTool and Shell.ts for user shell commands.
  * COMSPEC is left unchanged for system process execution.
  */
 export function setShellIfWindows(): void {
-  if (getPlatform() === 'windows') {
-    const gitBashPath = findGitBashPath()
+  if (getPlatform() !== 'windows') return
+
+  const gitBashPath = tryFindGitBashPath()
+  if (gitBashPath) {
     process.env.SHELL = gitBashPath
     logForDebugging(`Using bash path: "${gitBashPath}"`)
+    return
   }
+
+  if (isCorelingBuild()) {
+    logForDebugging(
+      `Git Bash not found on Windows; install Git for Windows or set ${GIT_BASH_PATH_ENV} before using shell/bash tools.`,
+    )
+    return
+  }
+
+  // biome-ignore lint/suspicious/noConsole:: intentional console output
+  console.error(gitBashMissingMessage())
+  // eslint-disable-next-line custom-rules/no-process-exit
+  process.exit(1)
 }
 
 /**
  * Find the path where `bash.exe` included with git-bash exists, exiting the process if not found.
  */
 export const findGitBashPath = memoize((): string => {
-  if (process.env.CLAUDE_CODE_GIT_BASH_PATH) {
-    if (checkPathExists(process.env.CLAUDE_CODE_GIT_BASH_PATH)) {
-      return process.env.CLAUDE_CODE_GIT_BASH_PATH
-    }
-    // biome-ignore lint/suspicious/noConsole:: intentional console output
-    console.error(
-      `Claude Code was unable to find CLAUDE_CODE_GIT_BASH_PATH path "${process.env.CLAUDE_CODE_GIT_BASH_PATH}"`,
-    )
-    // eslint-disable-next-line custom-rules/no-process-exit
-    process.exit(1)
-  }
-
-  const gitPath = findExecutable('git')
-  if (gitPath) {
-    const bashPath = pathWin32.join(gitPath, '..', '..', 'bin', 'bash.exe')
-    if (checkPathExists(bashPath)) {
-      return bashPath
-    }
+  const bashPath = tryFindGitBashPath()
+  if (bashPath) {
+    return bashPath
   }
 
   // biome-ignore lint/suspicious/noConsole:: intentional console output
-  console.error(
-    'Claude Code on Windows requires git-bash (https://git-scm.com/downloads/win). If installed but not in PATH, set environment variable pointing to your bash.exe, similar to: CLAUDE_CODE_GIT_BASH_PATH=C:\\Program Files\\Git\\bin\\bash.exe',
-  )
+  console.error(gitBashMissingMessage())
   // eslint-disable-next-line custom-rules/no-process-exit
   process.exit(1)
 })

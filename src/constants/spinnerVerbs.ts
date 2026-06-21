@@ -1,6 +1,12 @@
+import { isCorelingBuild } from './brand.js'
+import { getCorelingSpinnerVerbs } from './corelingSpinnerVerbs.js'
 import { getInitialSettings } from '../utils/settings/settings.js'
 
 export function getSpinnerVerbs(): string[] {
+  if (isCorelingBuild()) {
+    return [...getCorelingSpinnerVerbs()]
+  }
+
   const settings = getInitialSettings()
   const config = settings.spinnerVerbs
   if (!config) {

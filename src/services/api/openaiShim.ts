@@ -32,6 +32,10 @@
 
 import { APIError } from '@anthropic-ai/sdk'
 import {
+  providerHttpErrorLabel,
+  providerTransportErrorLabel,
+} from '../../constants/corelingProviderCopy.js'
+import {
   readCodexCredentialsAsync,
   refreshCodexAccessTokenIfNeeded,
 } from '../../utils/codexCredentials.js'
@@ -3095,7 +3099,7 @@ class OpenAIShimMessages {
         0,
         undefined,
         buildOpenAICompatibilityErrorMessage(
-          `OpenAI API transport error: ${safeMessage}${failure.code ? ` (code=${failure.code})` : ''}`,
+          `${providerTransportErrorLabel()}: ${safeMessage}${failure.code ? ` (code=${failure.code})` : ''}`,
           failure,
         ),
         new Headers(),
@@ -3131,7 +3135,7 @@ class OpenAIShimMessages {
         status,
         parsedBody,
         buildOpenAICompatibilityErrorMessage(
-          `OpenAI API error ${status}: ${errorBody}${rateHint}`,
+          `${providerHttpErrorLabel(status)}: ${errorBody}${rateHint}`,
           failureWithUrl,
         ),
         responseHeaders,
