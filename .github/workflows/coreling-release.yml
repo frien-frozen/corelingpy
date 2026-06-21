@@ -1,0 +1,38 @@
+name: Coreling Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version-file: .bun-version
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Build and package
+        run: bash scripts/package-release.sh
+
+      - name: Upload to GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          VERSION="$(node -p "require('./package.json').version")"
+          ARCHIVE="release/coreling-v${VERSION}.tar.gz"
+          gh release upload "v${VERSION}" "$ARCHIVE" --clobber || \
+            gh release create "v${VERSION}" "$ARCHIVE" --title "Coreling v${VERSION}" --notes "Coreling v2 — Spark · Chat · Pro + free cloud models. Run: coreling"
