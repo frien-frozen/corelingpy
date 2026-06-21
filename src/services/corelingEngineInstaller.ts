@@ -9,20 +9,24 @@ import {
   statSync,
   writeFileSync,
 } from 'node:fs'
-import { join } from 'node:path'
+import { dirname, join } from 'node:path'
 import { spawnSync } from 'node:child_process'
 import { getCorelingDir } from './localModelManager.js'
 
 /** Pinned llama.cpp release — CPU builds for broad compatibility. */
 const LLAMA_CPP_TAG = 'b7335'
 
-function engineVersionPath(): string {
-  return join(getCorelingDir(), 'engine-version.txt')
+export function getEngineDir(): string {
+  return join(getCorelingDir(), 'engine')
 }
 
-function getDaemonPath(): string {
-  const cdir = getCorelingDir()
-  return join(cdir, process.platform === 'win32' ? 'corelingd.exe' : 'corelingd')
+export function getDaemonPath(): string {
+  const name = process.platform === 'win32' ? 'corelingd.exe' : 'corelingd'
+  return join(getEngineDir(), name)
+}
+
+function engineVersionPath(): string {
+  return join(getCorelingDir(), 'engine-version.txt')
 }
 
 export type EngineDownloadProgress = {
@@ -52,10 +56,15 @@ function serverBinaryName(): string {
 }
 
 function findFileRecursive(dir: string, filename: string, depth = 0): string | null {
-  if (depth > 4) return null
+  if (depth > 5) return null
   for (const entry of readdirSync(dir)) {
     const path = join(dir, entry)
-    const st = statSync(path)
+    let st
+    try {
+      st = statSync(path)
+    } catch {
+      continue
+    }
     if (st.isFile() && entry.toLowerCase() === filename.toLowerCase()) {
       return path
     }
@@ -70,16 +79,31 @@ function findFileRecursive(dir: string, filename: string, depth = 0): string | n
 function extractArchive(archivePath: string, destDir: string): void {
   mkdirSync(destDir, { recursive: true })
   if (archivePath.endsWith('.zip')) {
-    const result = spawnSync('tar', ['-xf', archivePath, '-C', destDir], {
+    const tarResult = spawnSync('tar', ['-xf', archivePath, '-C', destDir], {
       stdio: 'pipe',
     })
-    if (result.status !== 0) {
+    if (tarResult.status === 0) return
+
+    if (process.platform === 'win32') {
+      const ps = spawnSync(
+        'powershell',
+        [
+          '-NoProfile',
+          '-Command',
+          `Expand-Archive -Path '${archivePath.replace(/'/g, "''")}' -DestinationPath '${destDir.replace(/'/g, "''")}' -Force`,
+        ],
+        { stdio: 'pipe' },
+      )
+      if (ps.status === 0) return
       throw new Error(
-        `Failed to extract engine archive: ${result.stderr?.toString() || 'tar error'}`,
+        `Failed to extract engine zip: ${ps.stderr?.toString() || tarResult.stderr?.toString() || 'unknown error'}`,
       )
     }
-    return
+    throw new Error(
+      `Failed to extract engine zip: ${tarResult.stderr?.toString() || 'tar error'}`,
+    )
   }
+
   const result = spawnSync('tar', ['-xzf', archivePath, '-C', destDir], {
     stdio: 'pipe',
   })
@@ -87,6 +111,35 @@ function extractArchive(archivePath: string, destDir: string): void {
     throw new Error(
       `Failed to extract engine archive: ${result.stderr?.toString() || 'tar error'}`,
     )
+  }
+}
+
+/** Copy llama-server + sibling DLLs/so/dylib into ~/.coreling/engine */
+function installEngineBundle(extractDir: string, engineDir: string): void {
+  const serverPath = findFileRecursive(extractDir, serverBinaryName())
+  if (!serverPath) {
+    throw new Error(
+      `Could not find ${serverBinaryName()} in llama.cpp release. Install [MSVC Redistributable 2022](https://learn.microsoft.com/cpp/windows/latest-supported-vc-redist) on Windows.`,
+    )
+  }
+
+  const binDir = dirname(serverPath)
+  mkdirSync(engineDir, { recursive: true })
+
+  for (const entry of readdirSync(binDir)) {
+    const src = join(binDir, entry)
+    try {
+      if (!statSync(src).isFile()) continue
+    } catch {
+      continue
+    }
+    copyFileSync(src, join(engineDir, entry))
+  }
+
+  const daemonName = process.platform === 'win32' ? 'corelingd.exe' : 'corelingd'
+  copyFileSync(join(engineDir, serverBinaryName()), join(engineDir, daemonName))
+  if (process.platform !== 'win32') {
+    chmodSync(join(engineDir, daemonName), 0o755)
   }
 }
 
@@ -101,7 +154,7 @@ async function downloadFile(
     headers: { 'User-Agent': 'Coreling/2.0' },
   })
   if (!response.ok || !response.body) {
-    throw new Error(`Engine download failed (${response.status})`)
+    throw new Error(`Engine download failed (${response.status}) from ${url}`)
   }
 
   const totalBytes = Number(response.headers.get('content-length') ?? 0) || null
@@ -146,7 +199,7 @@ export function isCorelingEngineInstalled(): boolean {
   }
 }
 
-/** Download llama-server from llama.cpp releases and install as ~/.coreling/corelingd */
+/** Download llama-server from llama.cpp releases into ~/.coreling/engine */
 export async function ensureCorelingEngine(
   onProgress?: (progress: EngineDownloadProgress) => void,
 ): Promise<string> {
@@ -160,25 +213,19 @@ export async function ensureCorelingEngine(
   const tmpDir = join(getCorelingDir(), '.engine-install')
   const archivePath = join(tmpDir, `llama-server${ext}`)
   const extractDir = join(tmpDir, 'extract')
+  const engineDir = getEngineDir()
 
   mkdirSync(tmpDir, { recursive: true })
   mkdirSync(getCorelingDir(), { recursive: true })
 
   await downloadFile(url, archivePath, onProgress)
   extractArchive(archivePath, extractDir)
-
-  const binary = findFileRecursive(extractDir, serverBinaryName())
-  if (!binary) {
-    throw new Error(
-      `Could not find ${serverBinaryName()} in llama.cpp release. Try again or install MSVC Redistributable on Windows.`,
-    )
-  }
-
-  copyFileSync(binary, daemonPath)
-  if (process.platform !== 'win32') {
-    chmodSync(daemonPath, 0o755)
-  }
+  installEngineBundle(extractDir, engineDir)
   writeFileSync(engineVersionPath(), `${LLAMA_CPP_TAG}\n`, 'utf8')
 
-  return daemonPath
+  return getDaemonPath()
+}
+
+export function getEngineSpawnCwd(): string {
+  return getEngineDir()
 }

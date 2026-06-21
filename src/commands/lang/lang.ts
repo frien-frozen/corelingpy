@@ -64,10 +64,10 @@ export const call: LocalCommandCall = async args => {
   settingsChangeDetector.notifyChange('userSettings')
 
   const refreshed = getInitialSettings().language ?? LOCALE_TO_SETTING[requested]
-  const ok =
-    requested === 'uz'
-      ? `Til O'zbekcha ga o'zgartirildi. Spinner va maslahatlar endi o'zbek tilida.`
-      : `Language switched to English. Spinner and tips will use English.`
+    const ok =
+      requested === 'uz'
+        ? `Til O'zbekcha ga o'zgartirildi. Terminal va spinner endi o'zbek tilida.`
+        : `Language switched to English. Terminal and spinner use English.`
 
   return {
     type: 'text',

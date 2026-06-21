@@ -1,29 +1,43 @@
-import { existsSync, readFileSync, writeFileSync } from 'node:fs'
+import { existsSync, readFileSync, writeFileSync, openSync } from 'node:fs'
 import { join } from 'node:path'
 import { spawn, spawnSync } from 'node:child_process'
 import { getCorelingDir } from './localModelManager.js'
-import { ensureCorelingEngine } from './corelingEngineInstaller.js'
+import {
+  ensureCorelingEngine,
+  getDaemonPath,
+  getEngineSpawnCwd,
+} from './corelingEngineInstaller.js'
 
 const PORT = Number(process.env.CORELING_LLAMA_PORT ?? '8080')
 const CTX_SIZE = String(process.env.CORELING_CTX_SIZE ?? '32768')
 const ACTIVE_MODEL_FILE = 'active-model.json'
 
-export function getDaemonPath(): string {
-  const cdir = getCorelingDir()
-  return join(cdir, process.platform === 'win32' ? 'corelingd.exe' : 'corelingd')
-}
+export { getDaemonPath }
 
 export async function healthOk(): Promise<boolean> {
-  try {
-    const res = await fetch(`http://127.0.0.1:${PORT}/health`, {
-      signal: AbortSignal.timeout(2000),
-    })
-    if (!res.ok) return false
-    const data = (await res.json()) as { status?: string }
-    return data.status === 'ok'
-  } catch {
-    return false
+  const urls = [
+    `http://127.0.0.1:${PORT}/health`,
+    `http://127.0.0.1:${PORT}/v1/models`,
+    `http://127.0.0.1:${PORT}/`,
+  ]
+  for (const url of urls) {
+    try {
+      const res = await fetch(url, { signal: AbortSignal.timeout(2500) })
+      if (!res.ok) continue
+      if (url.endsWith('/health')) {
+        try {
+          const data = (await res.json()) as { status?: string }
+          if (data.status === 'ok') return true
+        } catch {
+          return true
+        }
+      }
+      return true
+    } catch {
+      // try next
+    }
   }
+  return false
 }
 
 function readActiveModelFilename(): string | null {
@@ -49,15 +63,16 @@ function writeActiveModelFilename(filename: string): void {
 }
 
 export function stopLlamaServer(): void {
-  const daemon = process.platform === 'win32' ? 'corelingd.exe' : 'corelingd'
   if (process.platform === 'win32') {
-    spawnSync('taskkill', ['/F', '/IM', daemon], { stdio: 'ignore' })
+    spawnSync('taskkill', ['/F', '/IM', 'corelingd.exe'], { stdio: 'ignore' })
+    spawnSync('taskkill', ['/F', '/IM', 'llama-server.exe'], { stdio: 'ignore' })
   } else {
-    spawnSync('pkill', ['-f', daemon], { stdio: 'ignore' })
+    spawnSync('pkill', ['-f', 'corelingd'], { stdio: 'ignore' })
+    spawnSync('pkill', ['-f', 'llama-server'], { stdio: 'ignore' })
   }
 }
 
-async function waitForReady(maxSec = 90): Promise<boolean> {
+async function waitForReady(maxSec = 120): Promise<boolean> {
   for (let i = 0; i < maxSec * 2; i++) {
     if (await healthOk()) return true
     await new Promise(r => setTimeout(r, 500))
@@ -78,33 +93,48 @@ export async function ensureLlamaServer(modelPath: string): Promise<void> {
     throw new Error(`Model file not found: ${modelPath}`)
   }
 
-  const daemon = getDaemonPath()
-  if (!existsSync(daemon)) {
+  if (!existsSync(getDaemonPath())) {
     await ensureCorelingEngine()
   }
 
+  const daemon = getDaemonPath()
   if (!existsSync(daemon)) {
     throw new Error(
-      `Coreling engine not found at ${daemon}. Download failed — check your network connection.`,
+      'Coreling engine failed to install. Check network and disk space in ~/.coreling/engine',
     )
   }
 
   stopLlamaServer()
-  await new Promise(r => setTimeout(r, 400))
+  await new Promise(r => setTimeout(r, 600))
 
-  const child = spawn(
-    daemon,
-    ['-m', modelPath, '--port', String(PORT), '--ctx-size', CTX_SIZE, '-n', '-1'],
-    {
-      detached: true,
-      stdio: 'ignore',
-      env: process.env,
-    },
-  )
+  const args = [
+    '-m',
+    modelPath,
+    '--host',
+    '127.0.0.1',
+    '--port',
+    String(PORT),
+    '--ctx-size',
+    CTX_SIZE,
+    '-n',
+    '-1',
+  ]
+
+  const logPath = join(getCorelingDir(), 'corelingd.log')
+  const logFd = openSync(logPath, 'a')
+
+  const child = spawn(daemon, args, {
+    detached: true,
+    stdio: ['ignore', logFd, logFd],
+    env: process.env,
+    cwd: getEngineSpawnCwd(),
+  })
   child.unref()
 
   if (!(await waitForReady())) {
-    throw new Error('llama-server did not become ready in time.')
+    throw new Error(
+      `llama-server did not start (see ${logPath}). On Windows install MSVC Redistributable 2022.`,
+    )
   }
 
   writeActiveModelFilename(filename)

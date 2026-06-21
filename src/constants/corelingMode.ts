@@ -2,7 +2,7 @@ import { detectLocale } from '../i18n/locale.js'
 import { isCorelingBuild } from './brand.js'
 
 /** Slash commands available in Coreling — minimal set for now. */
-const CORELING_COMMAND_NAMES = new Set(['model', 'lang', 'exit'])
+const CORELING_COMMAND_NAMES = new Set(['model', 'lang', 'exit', 'gui'])
 
 export function isCorelingCommandAllowed(name: string): boolean {
   return CORELING_COMMAND_NAMES.has(name)
@@ -34,6 +34,10 @@ export function getCorelingSpinnerTips(): Array<{
         content: '/model — Spark · Chat · Pro (mahalliy) yoki bulut modellari',
       },
       {
+        id: 'coreling-gui-uz',
+        content: '/gui — brauzerda orkestrator rejimi (rollar, feed, chat)',
+      },
+      {
         id: 'coreling-lang-uz',
         content: "/lang en — ingliz tiliga qaytish",
       },
@@ -46,6 +50,10 @@ export function getCorelingSpinnerTips(): Array<{
       content: 'Use /model to switch Spark · Chat · Pro (local) or free cloud models',
     },
     {
+      id: 'coreling-gui',
+      content: 'Use /gui for browser orchestrator — assign models to roles, feed files',
+    },
+    {
       id: 'coreling-lang',
       content: "Use /lang uz to switch the interface to O'zbek",
     },
@@ -53,14 +61,7 @@ export function getCorelingSpinnerTips(): Array<{
 }
 
 /** Spinner tip prefix — distinct from Claude Code "Tip:". */
-export function corelingSpinnerTipPrefix(): string {
-  return detectLocale() === 'uz' ? '↳ Maslahat' : '↳'
-}
-
-/** Status bar context label. */
-export function corelingContextLabel(percent: number): string {
-  return detectLocale() === 'uz' ? `kontekst ${percent}%` : `ctx ${percent}%`
-}
+export { corelingSpinnerTipPrefix, corelingContextLabel } from '../i18n/corelingUiStrings.js'
 
 /**
  * Apply Coreling runtime defaults — focused coding agent, not a Claude Code fork.

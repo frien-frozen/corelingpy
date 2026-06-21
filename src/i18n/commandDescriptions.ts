@@ -31,6 +31,7 @@ const openClaudeCommandDescriptionKeys: Record<string, LocalizationKey> = {
   'install-github-app': 'commands.install-github-app.description',
   knowledge: 'commands.knowledge.description',
   lang: 'commands.lang.description',
+  gui: 'commands.gui.description',
   login: 'commands.login.description',
   logout: 'commands.logout.description',
   lsp: 'commands.lsp.description',

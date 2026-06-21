@@ -1,14 +1,16 @@
 export const uz = {
   'commands.lang.description':
     'Interfeys tilini o\'zgartirish (en · uz)',
+  'commands.gui.description':
+    'Brauzerda Coreling GUI ochish (orkestrator rejimi)',
   'commands.model.description':
     'Modelni almashtirish — Spark · Chat · Pro yoki bulut',
+  'commands.exit.description': 'Chiqish',
   'commands.help.description': 'Yordam va buyruqlar ro\'yxati',
   'commands.clear.description':
     'Suhbat tarixini tozalash va kontekstni bo\'shatish',
   'commands.compact.description':
     'Tarixni qisqartirish, xulosani kontekstda saqlash',
-  'commands.exit.description': 'Chiqish',
   'commands.cost.description':
     'Joriy sessiya narxi va davomiyligini ko\'rsatish',
   'commands.context.description': 'Kontekst foydalanishini ko\'rsatish',

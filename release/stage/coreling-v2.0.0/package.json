@@ -4,8 +4,7 @@
   "description": "Coreling v2 — local Spark/Chat/Pro + free cloud AI",
   "type": "module",
   "bin": {
-    "coreling": "./bin/coreling",
-    "openclaude": "./bin/openclaude"
+    "coreling": "./bin/coreling"
   },
   "exports": {
     "./package.json": "./package.json",
