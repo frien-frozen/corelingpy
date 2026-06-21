@@ -9,6 +9,8 @@ import {
   logEvent,
 } from './analytics/index.js'
 
+import { PRODUCT_DISPLAY_NAME } from '../constants/product.js'
+
 export type NotificationOptions = {
   message: string
   title?: string
@@ -35,7 +37,7 @@ export async function sendNotification(
   })
 }
 
-const DEFAULT_TITLE = 'OpenClaude'
+const DEFAULT_TITLE = PRODUCT_DISPLAY_NAME
 
 async function sendToChannel(
   channel: string,

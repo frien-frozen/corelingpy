@@ -14,6 +14,16 @@ export const BRAND_TAGLINE = '100% local · 100% private · Spark · Chat · Pro
 /** Short name for messages (no version suffix). */
 export const PRODUCT_NAME = 'Coreling'
 
+/** Default terminal tab title before session rename / topic extraction. */
+export function defaultTerminalTitle(): string {
+  return isCorelingBuild() ? PRODUCT_NAME : 'OpenClaude'
+}
+
+/** Prefix glyph shown in the terminal tab while Coreling is idle/working. */
+export function terminalTitlePrefix(): string {
+  return isCorelingBuild() ? '◆' : '✳'
+}
+
 /** CLI binary / command name. */
 export const CLI_COMMAND = 'coreling'
 
